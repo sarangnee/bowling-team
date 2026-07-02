@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>🎳 bowling.team_balancer</title>
+<style>
+  :root {
+    --green: #16a34a;
+    --green-dark: #15803d;
+    --green-bg: #f0fdf4;
+    --green-border: #bbf7d0;
+    --gray: #6b7280;
+    --border: #e5e7eb;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+    background: #ffffff;
+    color: #1f2937;
+    padding: 16px;
+    max-width: 640px;
+    margin: 0 auto;
+    -webkit-text-size-adjust: 100%;
+  }
+  header {
+    border: 1px solid var(--green-border);
+    background: var(--green-bg);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 16px;
+  }
+  header h1 { font-size: 16px; color: var(--green-dark); }
+  header p { font-size: 11px; color: var(--gray); margin-top: 4px; }
+  .prompt::before { content: "$ "; color: var(--green); font-weight: bold; }
+
+  .toolbar { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+  button {
+    font-family: inherit;
+    font-size: 13px;
+    border-radius: 6px;
+    padding: 10px 14px;
+    border: 1px solid var(--green);
+    background: #fff;
+    color: var(--green-dark);
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  button:active { background: var(--green-bg); }
+  button.primary { background: var(--green); color: #fff; font-weight: bold; }
+  button.primary:active { background: var(--green-dark); }
+  button.danger { border-color: #fca5a5; color: #dc2626; padding: 10px 12px; }
+
+  .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 12px; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { border-bottom: 1px solid var(--border); padding: 6px; text-align: center; font-size: 12px; white-space: nowrap; }
+  th { background: var(--green-bg); color: var(--green-dark); font-size: 11px; padding: 8px 6px; }
+  input {
+    font-family: inherit;
+    font-size: 16px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 6px;
+    width: 80px;
+    text-align: center;
+  }
+  input.name { width: 90px; text-align: left; padding-left: 8px; }
+  input:focus { outline: 2px solid var(--green); border-color: var(--green); }
+  td.avg { color: var(--green-dark); font-weight: bold; }
+
+  #result { margin-top: 16px; }
+  .team-card {
+    border: 1px solid var(--green-border);
+    border-radius: 8px;
+    margin-bottom: 10px;
+    overflow: hidden;
+  }
+  .team-head {
+    background: var(--green-bg);
+    padding: 8px 12px;
+    font-size: 13px;
+    color: var(--green-dark);
+    font-weight: bold;
+    display: flex;
+    justify-content: space-between;
+  }
+  .team-body { padding: 8px 12px; font-size: 13px; line-height: 1.8; }
+  .team-body span.score { color: var(--gray); font-size: 11px; }
+  .stats {
+    border: 1px dashed var(--green);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 12px;
+    color: var(--gray);
+    margin-bottom: 12px;
+    background: #fafffe;
+  }
+  .stats b { color: var(--green-dark); }
+  dialog {
+    border: 1px solid var(--green);
+    border-radius: 10px;
+    padding: 20px;
+    font-family: inherit;
+    width: 280px;
+  }
+  dialog::backdrop { background: rgba(0,0,0,0.3); }
+  dialog h2 { font-size: 14px; color: var(--green-dark); margin-bottom: 12px; }
+  dialog input { width: 100%; margin-bottom: 12px; }
+  dialog .row { display: flex; gap: 8px; }
+  dialog .row button { flex: 1; }
+  .hint { font-size: 11px; color: var(--gray); margin: 8px 0 16px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🎳 bowling.team_balancer</h1>
+  <p class="prompt">팀 합산 평균점수의 표준편차를 최소화하여 팀을 편성합니다</p>
+</header>
+
+<div class="toolbar">
+  <button onclick="addPlayer()">+ 사람 추가</button>
+  <button onclick="addRound()">+ 라운드 추가</button>
+  <button class="primary" onclick="openTeamDialog()">▶ 팀 편성하기</button>
+</div>
+
+<div class="table-wrap">
+  <table id="grid">
+    <thead><tr id="headRow"></tr></thead>
+    <tbody id="body"></tbody>
+  </table>
+</div>
+<p class="hint"># 점수를 입력하면 평균(avg)이 자동 계산됨. 빈 칸은 평균에서 제외.</p>
+
+<div id="result"></div>
+
+<dialog id="teamDialog">
+  <h2>$ 몇 개 팀으로 나눌까?</h2>
+  <input type="number" id="teamCount" min="2" inputmode="numeric" placeholder="예: 4">
+  <div class="row">
+    <button onclick="teamDialog.close()">취소</button>
+    <button class="primary" onclick="makeTeams()">편성</button>
+  </div>
+</dialog>
+
+<script>
+let rounds = 1;
+let players = [{ name: "", scores: [null] }];
+
+function save() {
+  localStorage.setItem("bowling", JSON.stringify({ rounds, players }));
+}
+function load() {
+  try {
+    const d = JSON.parse(localStorage.getItem("bowling"));
+    if (d && d.players && d.players.length) { rounds = d.rounds; players = d.players; }
+  } catch (e) {}
+}
+
+function avg(p) {
+  const s = p.scores.filter(v => v !== null && v !== "" && !isNaN(v)).map(Number);
+  if (!s.length) return null;
+  return s.reduce((a, b) => a + b, 0) / s.length;
+}
+
+function render() {
+  const head = document.getElementById("headRow");
+  head.innerHTML = "<th>#</th><th>이름</th>" +
+    Array.from({ length: rounds }, (_, i) => `<th>R${i + 1}</th>`).join("") +
+    "<th>avg</th><th></th>";
+  const body = document.getElementById("body");
+  body.innerHTML = players.map((p, pi) => {
+    const cells = p.scores.map((s, ri) =>
+      `<td><input type="number" inputmode="numeric" min="0" max="300" value="${s ?? ""}"
+        oninput="setScore(${pi},${ri},this.value)"></td>`).join("");
+    const a = avg(p);
+    return `<tr>
+      <td>${pi + 1}</td>
+      <td><input class="name" value="${p.name.replace(/"/g, "&quot;")}" placeholder="이름"
+        oninput="setName(${pi},this.value)"></td>
+      ${cells}
+      <td class="avg">${a === null ? "-" : a.toFixed(1)}</td>
+      <td><button class="danger" onclick="removePlayer(${pi})">×</button></td>
+    </tr>`;
+  }).join("");
+  save();
+}
+
+function setName(pi, v) { players[pi].name = v; save(); }
+function setScore(pi, ri, v) {
+  players[pi].scores[ri] = v === "" ? null : Number(v);
+  document.getElementById("body").rows[pi].cells[rounds + 2].textContent =
+    avg(players[pi]) === null ? "-" : avg(players[pi]).toFixed(1);
+  save();
+}
+function addPlayer() {
+  players.push({ name: "", scores: Array(rounds).fill(null) });
+  render();
+}
+function removePlayer(pi) {
+  players.splice(pi, 1);
+  if (!players.length) players.push({ name: "", scores: Array(rounds).fill(null) });
+  render();
+}
+function addRound() {
+  rounds++;
+  players.forEach(p => p.scores.push(null));
+  render();
+}
+
+const teamDialog = document.getElementById("teamDialog");
+function openTeamDialog() {
+  const valid = players.filter(p => avg(p) !== null);
+  if (valid.length < 2) { alert("점수가 입력된 사람이 2명 이상 필요해"); return; }
+  teamDialog.showModal();
+}
+
+function makeTeams() {
+  const k = parseInt(document.getElementById("teamCount").value);
+  const valid = players.map(p => ({ name: p.name || "(이름없음)", avg: avg(p) }))
+                       .filter(p => p.avg !== null);
+  if (!k || k < 2) { alert("팀 수는 2 이상"); return; }
+  if (k > valid.length) { alert("팀 수가 인원보다 많아"); return; }
+  teamDialog.close();
+
+  const n = valid.length;
+  // 팀 크기: n=30, k=7 → [5,5,4,4,4,4,4]
+  const base = Math.floor(n / k), extra = n % k;
+  const sizes = Array.from({ length: k }, (_, i) => base + (i < extra ? 1 : 0));
+
+  // 초기해: 점수 내림차순 스네이크 드래프트
+  const sorted = [...valid].sort((a, b) => b.avg - a.avg);
+  let teams = Array.from({ length: k }, () => []);
+  let dir = 1, t = 0;
+  for (const p of sorted) {
+    // 자리가 남은 팀 중 스네이크 순서로 배정
+    let tries = 0;
+    while (teams[t].length >= sizes[t] && tries < 2 * k) { step(); tries++; }
+    teams[t].push(p);
+    step();
+    function step() {
+      t += dir;
+      if (t === k) { t = k - 1; dir = -1; }
+      if (t === -1) { t = 0; dir = 1; }
+    }
+  }
+
+  const sum = tm => tm.reduce((a, p) => a + p.avg, 0);
+  const sd = ts => {
+    const sums = ts.map(sum);
+    const m = sums.reduce((a, b) => a + b, 0) / sums.length;
+    return Math.sqrt(sums.reduce((a, s) => a + (s - m) ** 2, 0) / sums.length);
+  };
+
+  // 지역 탐색: 두 팀 간 선수 스왑으로 표준편차 개선 반복
+  let improved = true, guard = 0;
+  while (improved && guard++ < 500) {
+    improved = false;
+    let best = sd(teams);
+    for (let i = 0; i < k; i++) for (let j = i + 1; j < k; j++) {
+      for (let a = 0; a < teams[i].length; a++) for (let b = 0; b < teams[j].length; b++) {
+        [teams[i][a], teams[j][b]] = [teams[j][b], teams[i][a]];
+        const s = sd(teams);
+        if (s < best - 1e-9) { best = s; improved = true; }
+        else [teams[i][a], teams[j][b]] = [teams[j][b], teams[i][a]];
+      }
+    }
+  }
+
+  const sums = teams.map(sum);
+  const mean = sums.reduce((a, b) => a + b, 0) / k;
+  document.getElementById("result").innerHTML =
+    `<div class="stats">$ result: 팀 <b>${k}</b>개 · 인원 <b>${n}</b>명 · 팀 합산 평균 <b>${mean.toFixed(1)}</b> · 표준편차 <b>${sd(teams).toFixed(2)}</b></div>` +
+    teams.map((tm, i) =>
+      `<div class="team-card">
+        <div class="team-head"><span>TEAM ${i + 1} (${tm.length}명)</span><span>Σ ${sum(tm).toFixed(1)}</span></div>
+        <div class="team-body">${tm.map(p => `${p.name} <span class="score">(${p.avg.toFixed(1)})</span>`).join(" · ")}</div>
+      </div>`).join("");
+  document.getElementById("result").scrollIntoView({ behavior: "smooth" });
+}
+
+load();
+render();
+</script>
+</body>
+</html>
