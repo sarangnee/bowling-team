@@ -242,7 +242,7 @@ function openTeamDialog() {
 
 function makeTeams() {
   const k = parseInt(document.getElementById("teamCount").value);
-  const valid = players.map(p => ({ name: p.name || "(이름없음)", avg: avg(p) }))
+  const valid = players.map((p, i) => ({ num: i + 1, name: p.name.trim(), avg: avg(p) }))
                        .filter(p => p.avg !== null);
   if (!k || k < 2) { alert("팀 수는 2 이상"); return; }
   if (k > valid.length) { alert("팀 수가 인원보다 많아"); return; }
@@ -318,7 +318,9 @@ function makeTeams() {
       return `<div class="team-card">
         <div class="team-head"><span>TEAM ${i + 1} (${tm.length}명)</span>
           <span>Σ ${sum(tm).toFixed(1)} <span style="color:${diffColor}">(${diffTxt})</span></span></div>
-        <div class="team-body">${tm.map(p => `${p.name} <span class="score">(${p.avg.toFixed(1)})</span>`).join(" · ")}</div>
+        <div class="team-body">${tm.map(p =>
+          `<span style="color:var(--green);font-weight:bold">${p.num}</span>${p.name ? " " + p.name : ""} <span class="score">(${p.avg.toFixed(1)})</span>`
+        ).join(" · ")}</div>
       </div>`;
     }).join("");
   document.getElementById("result").scrollIntoView({ behavior: "smooth" });
