@@ -122,6 +122,7 @@
 <div class="toolbar">
   <button onclick="addPlayer()">+ 사람 추가</button>
   <button onclick="addRound()">+ 라운드 추가</button>
+  <button class="danger" onclick="removeRound()">− 라운드 삭제</button>
   <button class="primary" onclick="openTeamDialog()">▶ 팀 편성하기</button>
 </div>
 
@@ -181,7 +182,7 @@ function render() {
         oninput="setName(${pi},this.value)"></td>
       ${cells}
       <td class="avg">${a === null ? "-" : a.toFixed(1)}</td>
-      <td><button class="danger" onclick="removePlayer(${pi})">×</button></td>
+      <td>${players.length > 1 ? `<button class="danger" onclick="removePlayer(${pi})">×</button>` : ""}</td>
     </tr>`;
   }).join("");
   save();
@@ -206,6 +207,14 @@ function removePlayer(pi) {
 function addRound() {
   rounds++;
   players.forEach(p => p.scores.push(null));
+  render();
+}
+function removeRound() {
+  if (rounds <= 1) return;
+  const hasData = players.some(p => p.scores[rounds - 1] !== null && p.scores[rounds - 1] !== "");
+  if (hasData && !confirm(`R${rounds}에 입력된 점수가 있어. 삭제할까?`)) return;
+  rounds--;
+  players.forEach(p => p.scores.pop());
   render();
 }
 
@@ -272,11 +281,16 @@ function makeTeams() {
   const mean = sums.reduce((a, b) => a + b, 0) / k;
   document.getElementById("result").innerHTML =
     `<div class="stats">$ result: 팀 <b>${k}</b>개 · 인원 <b>${n}</b>명 · 팀 합산 평균 <b>${mean.toFixed(1)}</b> · 표준편차 <b>${sd(teams).toFixed(2)}</b></div>` +
-    teams.map((tm, i) =>
-      `<div class="team-card">
-        <div class="team-head"><span>TEAM ${i + 1} (${tm.length}명)</span><span>Σ ${sum(tm).toFixed(1)}</span></div>
+    teams.map((tm, i) => {
+      const diff = sum(tm) - mean;
+      const diffTxt = diff >= 0 ? `+${diff.toFixed(1)}` : diff.toFixed(1);
+      const diffColor = diff >= 0 ? "#16a34a" : "#dc2626";
+      return `<div class="team-card">
+        <div class="team-head"><span>TEAM ${i + 1} (${tm.length}명)</span>
+          <span>Σ ${sum(tm).toFixed(1)} <span style="color:${diffColor}">(${diffTxt})</span></span></div>
         <div class="team-body">${tm.map(p => `${p.name} <span class="score">(${p.avg.toFixed(1)})</span>`).join(" · ")}</div>
-      </div>`).join("");
+      </div>`;
+    }).join("");
   document.getElementById("result").scrollIntoView({ behavior: "smooth" });
 }
 
