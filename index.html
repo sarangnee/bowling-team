@@ -239,23 +239,6 @@ function makeTeams() {
   const base = Math.floor(n / k), extra = n % k;
   const sizes = Array.from({ length: k }, (_, i) => base + (i < extra ? 1 : 0));
 
-  // 초기해: 점수 내림차순 스네이크 드래프트
-  const sorted = [...valid].sort((a, b) => b.avg - a.avg);
-  let teams = Array.from({ length: k }, () => []);
-  let dir = 1, t = 0;
-  for (const p of sorted) {
-    // 자리가 남은 팀 중 스네이크 순서로 배정
-    let tries = 0;
-    while (teams[t].length >= sizes[t] && tries < 2 * k) { step(); tries++; }
-    teams[t].push(p);
-    step();
-    function step() {
-      t += dir;
-      if (t === k) { t = k - 1; dir = -1; }
-      if (t === -1) { t = 0; dir = 1; }
-    }
-  }
-
   const sum = tm => tm.reduce((a, p) => a + p.avg, 0);
   const sd = ts => {
     const sums = ts.map(sum);
@@ -263,19 +246,51 @@ function makeTeams() {
     return Math.sqrt(sums.reduce((a, s) => a + (s - m) ** 2, 0) / sums.length);
   };
 
-  // 지역 탐색: 두 팀 간 선수 스왑으로 표준편차 개선 반복
-  let improved = true, guard = 0;
-  while (improved && guard++ < 500) {
-    improved = false;
-    let best = sd(teams);
-    for (let i = 0; i < k; i++) for (let j = i + 1; j < k; j++) {
-      for (let a = 0; a < teams[i].length; a++) for (let b = 0; b < teams[j].length; b++) {
-        [teams[i][a], teams[j][b]] = [teams[j][b], teams[i][a]];
-        const s = sd(teams);
-        if (s < best - 1e-9) { best = s; improved = true; }
-        else [teams[i][a], teams[j][b]] = [teams[j][b], teams[i][a]];
+  // 주어진 순서로 스네이크 배분 후, 두 팀 간 스왑으로 개선이 없을 때까지 지역 탐색
+  function optimize(order) {
+    const ts = Array.from({ length: k }, () => []);
+    let dir = 1, t = 0;
+    const step = () => {
+      t += dir;
+      if (t === k) { t = k - 1; dir = -1; }
+      if (t === -1) { t = 0; dir = 1; }
+    };
+    for (const p of order) {
+      let tries = 0;
+      while (ts[t].length >= sizes[t] && tries < 2 * k) { step(); tries++; }
+      ts[t].push(p);
+      step();
+    }
+    let improved = true, guard = 0;
+    while (improved && guard++ < 500) {
+      improved = false;
+      let best = sd(ts);
+      for (let i = 0; i < k; i++) for (let j = i + 1; j < k; j++) {
+        for (let a = 0; a < ts[i].length; a++) for (let b = 0; b < ts[j].length; b++) {
+          [ts[i][a], ts[j][b]] = [ts[j][b], ts[i][a]];
+          const s = sd(ts);
+          if (s < best - 1e-9) { best = s; improved = true; }
+          else [ts[i][a], ts[j][b]] = [ts[j][b], ts[i][a]];
+        }
       }
     }
+    return ts;
+  }
+
+  // 랜덤 재시작 50회: 1회차는 점수 내림차순, 이후는 랜덤 순서로 시작해 최선 결과 선택
+  let teams = null, bestSd = Infinity;
+  const order = [...valid].sort((a, b) => b.avg - a.avg);
+  for (let r = 0; r < 50; r++) {
+    if (r > 0) {
+      for (let i = order.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [order[i], order[j]] = [order[j], order[i]];
+      }
+    }
+    const ts = optimize(order);
+    const s = sd(ts);
+    if (s < bestSd) { bestSd = s; teams = ts; }
+    if (bestSd < 1e-9) break;
   }
 
   const sums = teams.map(sum);
