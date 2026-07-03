@@ -36,7 +36,8 @@
   header p { font-size: 11px; color: var(--gray); margin-top: 4px; }
   .prompt::before { content: "$ "; color: var(--green); font-weight: bold; }
 
-  .toolbar { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+  .toolbar { display: flex; gap: 6px; margin-bottom: 12px; }
+  .toolbar button { flex: 1; padding: 10px 2px; font-size: 12px; white-space: nowrap; }
   button {
     font-family: inherit;
     font-size: 13px;
@@ -120,10 +121,10 @@
 </header>
 
 <div class="toolbar">
-  <button onclick="addPlayer()">+ 사람 추가</button>
-  <button onclick="addRound()">+ 라운드 추가</button>
-  <button class="danger" onclick="removeRound()">− 라운드 삭제</button>
-  <button class="primary" onclick="openTeamDialog()">▶ 팀 편성하기</button>
+  <button onclick="addPlayer()">+ 사람</button>
+  <button onclick="addRound()">+ 라운드</button>
+  <button class="danger" onclick="removeRound()">− 라운드</button>
+  <button class="primary" onclick="openTeamDialog()">▶ 팀 편성</button>
 </div>
 
 <div class="table-wrap">
