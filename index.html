@@ -137,7 +137,8 @@
     <tbody id="body"></tbody>
   </table>
 </div>
-<p class="hint"># 점수를 입력하면 평균(avg)이 자동 계산됨. 빈 칸은 평균에서 제외.</p>
+<p class="hint"># 점수를 입력하면 평균(avg)이 자동 계산됨. 빈 칸은 평균에서 제외.
+  <button class="danger" style="float:right;font-size:11px;padding:4px 10px" onclick="resetAll()">↺ 전체 초기화</button></p>
 
 <div id="result"></div>
 
@@ -220,6 +221,15 @@ function removeRound() {
   if (hasData && !confirm(`R${rounds}에 입력된 점수가 있어. 삭제할까?`)) return;
   rounds--;
   players.forEach(p => p.scores.pop());
+  render();
+}
+
+function resetAll() {
+  if (!confirm("이름과 점수를 전부 지울까? 되돌릴 수 없어!")) return;
+  localStorage.removeItem("bowling");
+  rounds = 1;
+  players = [{ name: "", scores: [null] }];
+  document.getElementById("result").innerHTML = "";
   render();
 }
 
